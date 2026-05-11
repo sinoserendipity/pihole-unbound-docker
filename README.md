@@ -37,6 +37,12 @@ docker run -d \
   --restart unless-stopped \
   -e TZ="Asia/Shanghai" \
   -e PIHOLE_WEB_PASSWORD="你的密码" \
+  -e FTLCONF_webserver_api_password="你的密码" \
+  -e FTLCONF_dns_upstreams="127.0.0.1#5335" \
+  -e FTLCONF_dns_listeningMode="ALL" \
+  -e FTLCONF_dns_dnssec="true" \
+  -e FTLCONF_dns_bogusPriv="true" \
+  -e FTLCONF_dns_domainNeeded="true" \
   -p 53:53/tcp \
   -p 53:53/udp \
   -p 8080:80/tcp \
