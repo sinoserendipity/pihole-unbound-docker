@@ -11,7 +11,6 @@ services:
 
     environment:
       TZ: "${TZ:-Asia/Shanghai}"
-      PIHOLE_WEB_PASSWORD: "${PIHOLE_WEB_PASSWORD:-change-me}"
 
       # Pi-hole FTLv6 配置，直接通过环境变量传入
       FTLCONF_webserver_api_password: "${PIHOLE_WEB_PASSWORD:-change-me}"

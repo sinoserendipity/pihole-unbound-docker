@@ -36,7 +36,6 @@ docker run -d \
   --name pihole-unbound \
   --restart unless-stopped \
   -e TZ="Asia/Shanghai" \
-  -e PIHOLE_WEB_PASSWORD="你的密码" \
   -e FTLCONF_webserver_api_password="你的密码" \
   -e FTLCONF_dns_upstreams="127.0.0.1#5335" \
   -e FTLCONF_dns_listeningMode="ALL" \
