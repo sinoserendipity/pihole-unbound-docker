@@ -1,0 +1,83 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
+  pull_request:
+    branches:
+      - main
+  schedule:
+    # 每周一 UTC 02:00 自动重建，跟进 pihole 官方镜像更新
+    - cron: "0 2 * * 1"
+  workflow_dispatch:
+    # 允许手动触发
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # ── 1. 检出代码 ──────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. 设置 QEMU（支持多架构构建 arm64/amd64）────────────
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # ── 3. 设置 Docker Buildx ────────────────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── 4. 登录 GHCR（PR 不推送，只构建验证）────────────────
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 5. 生成镜像 tag 和 label ─────────────────────────────
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            # main 分支 → :latest
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            # tag 推送 → :v1.2.3 和 :1.2.3
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            # 每次 commit 的短 SHA → :sha-xxxxxxx
+            type=sha,prefix=sha-,format=short
+            # 定时构建也打 :latest
+            type=raw,value=latest,enable=${{ github.event_name == 'schedule' }}
+
+      # ── 6. 构建并推送（多架构：amd64 + arm64）────────────────
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # 启用 GitHub Actions 缓存，加速后续构建
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── 7. 输出镜像摘要 ──────────────────────────────────────
+      - name: Image digest
+        run: echo "Pushed image digest ${{ steps.build-and-push.outputs.digest }}"
