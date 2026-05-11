@@ -1,0 +1,46 @@
+# ============================================================
+# compose.yaml — Pi-hole + Unbound 单容器部署
+# ============================================================
+
+services:
+  pihole-unbound:
+    image: ghcr.io/sinoserendipity/pihole-unbound-docker:latest
+    container_name: pihole-unbound
+    hostname: pihole
+    restart: unless-stopped
+
+    environment:
+      TZ: "${TZ:-Asia/Shanghai}"
+      PIHOLE_WEB_PASSWORD: "${PIHOLE_WEB_PASSWORD:-change-me}"
+
+      # Pi-hole FTLv6 配置，直接通过环境变量传入
+      FTLCONF_webserver_api_password: "${PIHOLE_WEB_PASSWORD:-change-me}"
+      FTLCONF_dns_upstreams: "127.0.0.1#5335"
+      FTLCONF_dns_listeningMode: "ALL"
+      FTLCONF_dns_dnssec: "true"
+      FTLCONF_dns_bogusPriv: "true"
+      FTLCONF_dns_domainNeeded: "true"
+
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "${PIHOLE_WEB_PORT:-8080}:80/tcp"
+
+    volumes:
+      - pihole_etc:/etc/pihole
+      - unbound_var:/var/lib/unbound
+
+    cap_add:
+      - NET_ADMIN
+      - SYS_NICE
+
+    healthcheck:
+      test: ["CMD-SHELL", "dig @127.0.0.1 -p 5335 cloudflare.com A +short || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  pihole_etc:
+  unbound_var:
